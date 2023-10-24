@@ -4,13 +4,13 @@ use std::env;
 use std::io::BufReader;
 use std::fs::File;
 
+use euclid::Angle;
 use geoutils::Location;
 use gpx::read;
 use gpx::{Gpx, Track, TrackSegment};
 use svg::Document;
 use svg::node::element::Path;
 use svg::node::element::path::{Data, Command, Parameters, Position, Number};
-
 
 fn segment_distance(segment: &TrackSegment) -> f64 {
     let mut distance: f64 = 0.0;
@@ -19,10 +19,16 @@ fn segment_distance(segment: &TrackSegment) -> f64 {
         let from = Location::new(p1.point().y(), p1.point().x());
         let to = Location::new(p2.point().y(), p2.point().x());
 
+        // TODO Не учитывает высоту
         distance += from.distance_to(&to).unwrap().meters()
     }
 
     distance
+}
+
+fn minimize_segment(segment: &TrackSegment, angle_limit: Angle<f64>) -> TrackSegment {
+    let mut min_seg: TrackSegment = TrackSegment::new();
+    min_seg
 }
 
 fn main() {
@@ -41,7 +47,9 @@ fn main() {
     // waypoint contains info like latitude, longitude, and elevation.
     let segment: &TrackSegment = &track.segments[0];
 
+    println!("Название: {:?}", track.name.clone().unwrap_or("Неизвестно".to_string()));
     println!("Протяженность: {:.2} км", segment_distance(segment) / 1000.0);
+    println!("Количество точек пути: {:?}", segment.points.len());
 
     let first = &segment.points[0].point();
     let mut v: Vec<Command> = vec![
