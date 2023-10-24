@@ -4,10 +4,11 @@ use std::env;
 use std::io::BufReader;
 use std::fs::File;
 
-use euclid::Angle;
+use euclid::{Angle, Vector2D};
+use itertools::izip;
 use geoutils::Location;
 use gpx::read;
-use gpx::{Gpx, Track, TrackSegment};
+use gpx::{Gpx, Track, TrackSegment, Waypoint};
 use svg::Document;
 use svg::node::element::Path;
 use svg::node::element::path::{Data, Command, Parameters, Position, Number};
@@ -28,6 +29,31 @@ fn segment_distance(segment: &TrackSegment) -> f64 {
 
 fn minimize_segment(segment: &TrackSegment, angle_limit: Angle<f64>) -> TrackSegment {
     let mut min_seg: TrackSegment = TrackSegment::new();
+    let mut angle_gup: f64 = angle_limit.get();
+    let points = &segment.points;
+
+    min_seg.points.push(points[0].to_owned());
+
+    for (p1, p2, p3) in izip!(points.iter(), points[1..].iter(), points[2..].iter()) {
+        let v1: Vector2D<f64, ()> = Vector2D::new(
+            p3.point().x() - p1.point().x(),
+            p3.point().y() - p1.point().y()
+        );
+
+        let v2: Vector2D<f64, ()> = Vector2D::new(
+            p3.point().x() - p2.point().x(),
+            p3.point().y() - p2.point().y()
+        );
+
+        let between = v1.angle_to(v2);
+        angle_gup -= between.get().abs();
+
+        if angle_gup <= 0.0 {
+            min_seg.points.push(p3.to_owned());
+            angle_gup = angle_limit.get();
+        }
+    }
+
     min_seg
 }
 
@@ -45,7 +71,8 @@ fn main() {
 
     // Each track will have different segments full of waypoints, where a
     // waypoint contains info like latitude, longitude, and elevation.
-    let segment: &TrackSegment = &track.segments[0];
+    let segment: &TrackSegment = &minimize_segment(&track.segments[0], Angle { radians: 0.2 });
+    // let segment: &TrackSegment = &track.segments[0];
 
     println!("Название: {:?}", track.name.clone().unwrap_or("Неизвестно".to_string()));
     println!("Протяженность: {:.2} км", segment_distance(segment) / 1000.0);

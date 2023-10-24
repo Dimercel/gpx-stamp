@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 euclid = "0.22.9"
+itertools = "0.11.0"
 geoutils = "0.5.1"
 gpx = "0.9.1"
 svg = "0.13.1"
