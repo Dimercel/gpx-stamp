@@ -4,11 +4,26 @@ use std::env;
 use std::io::BufReader;
 use std::fs::File;
 
+use geoutils::Location;
 use gpx::read;
 use gpx::{Gpx, Track, TrackSegment};
 use svg::Document;
 use svg::node::element::Path;
 use svg::node::element::path::{Data, Command, Parameters, Position, Number};
+
+
+fn segment_distance(segment: &TrackSegment) -> f64 {
+    let mut distance: f64 = 0.0;
+
+    for (p1, p2) in segment.points.iter().zip(segment.points[1..].iter()) {
+        let from = Location::new(p1.point().y(), p1.point().x());
+        let to = Location::new(p2.point().y(), p2.point().x());
+
+        distance += from.distance_to(&to).unwrap().meters()
+    }
+
+    distance
+}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -26,8 +41,7 @@ fn main() {
     // waypoint contains info like latitude, longitude, and elevation.
     let segment: &TrackSegment = &track.segments[0];
 
-    dbg!(&segment.points[0]);
-
+    println!("Протяженность: {:.2} км", segment_distance(segment) / 1000.0);
 
     let first = &segment.points[0].point();
     let mut v: Vec<Command> = vec![
