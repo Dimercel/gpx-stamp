@@ -30,16 +30,16 @@ fn way_distance(way: &Vec<Waypoint>) -> f64 {
 fn minimize_way(way: &Vec<Waypoint>, angle_limit: Angle<f64>) -> Vec<Waypoint> {
     if way.len() < 6 { return way.clone() };
 
-    let mut min_way: Vec<Waypoint> = vec!(way[0].to_owned());
+    let mut min_way: Vec<Waypoint> = vec!(way[0].to_owned(), way[1].to_owned());
     let prelast = way.len() - 2;
     let mut angle_gup: f64 = angle_limit.get();
     let zero_vec = Vector2D::new(0.0, 0.0);
 
     // Первая и последняя точка не должны участвовать в
-    // алгоритме, они всегда должны присутствовать в результате
-    let triple_way = izip!(way[1..prelast].iter(),
-                           way[2..prelast].iter(),
-                           way[3..prelast].iter());
+    // алгоритме, но всегда должны присутствовать в результате
+    let triple_way = izip!(way[0..prelast].iter(),
+                           way[1..prelast].iter(),
+                           way[2..prelast].iter());
 
     for (p1, p2, p3) in triple_way {
         let v1: Vector2D<f64, ()> = Vector2D::new(
