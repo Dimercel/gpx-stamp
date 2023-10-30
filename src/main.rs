@@ -80,8 +80,23 @@ fn main() {
     let way: &Vec<Waypoint> = &track.segments[0].points;
     let opt_way: Vec<Waypoint> = minimize_way(way, Angle { radians: 0.2 });
 
+    let mut total_elevation: f64 = 0.0;
+    for (p1, p2) in way.iter().zip(way[1..].iter()) {
+        match (p1.elevation, p2.elevation) {
+            (Some(e1), Some(e2)) => {
+                if e2 > e1 {
+                    total_elevation += e2 - e1;
+                }
+            },
+            _ => {},
+        }
+    }
+
+
+
     println!("Название: {:?}", track.name.clone().unwrap_or("Неизвестно".to_string()));
     println!("Протяженность: {:.2} км", way_distance(way) / 1000.0);
+    println!("Общий подъем: {:.2} м", total_elevation);
     println!("Количество точек пути: {:?}", way.len());
 
     let first = &opt_way[0].point();
