@@ -97,7 +97,7 @@ fn main() {
     println!("Название: {:?}", track.name.clone().unwrap_or("Неизвестно".to_string()));
     println!("Протяженность: {:.2} км", way_distance(way) / 1000.0);
     println!("Общий подъем: {:.2} м", total_elevation);
-    println!("Количество точек пути: {:?}", way.len());
+    println!("GPS-точек на км: {:?}", way.len() / (way_distance(way) / 1000.0) as usize);
 
     let first = &opt_way[0].point();
     let mut v: Vec<Command> = vec![
