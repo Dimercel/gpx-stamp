@@ -12,6 +12,7 @@ use gpx::{Gpx, Track, Waypoint};
 use svg::Document;
 use svg::node::element::Path;
 use svg::node::element::path::{Data, Command, Parameters, Position, Number};
+use time::{OffsetDateTime, Duration};
 
 fn way_distance(way: &Vec<Waypoint>) -> f64 {
     let mut distance: f64 = 0.0;
@@ -69,6 +70,37 @@ fn minimize_way(way: &Vec<Waypoint>, angle_limit: Angle<f64>) -> Vec<Waypoint> {
     opt_way
 }
 
+fn find_pauses(way: &Vec<Waypoint>) -> Vec<(Duration, &Waypoint, &Waypoint)> {
+    let mut pauses: Vec<(Duration, &Waypoint, &Waypoint)> = vec!();
+    for (p1, p2) in way.iter().zip(way[1..].iter()) {
+        match (p1.time, p2.time) {
+            (Some(t1), Some(t2)) => {
+                let time_point1: OffsetDateTime = t1.into();
+                let time_point2: OffsetDateTime = t2.into();
+                let pause_duration = (time_point2 - time_point1).abs();
+
+                // TODO порог в 5 минут требует коррекции в
+                // зависимости от типа активности
+                if  pause_duration > 5 * Duration::MINUTE {
+                    pauses.push((pause_duration, &p1, &p2));
+                }
+
+            },
+            _ => {},
+        }
+    }
+
+    pauses
+}
+
+fn format_duration(dur: Duration) -> String {
+    let hours = dur.whole_hours();
+    let minutes = dur.whole_minutes() - (hours * 60);
+    let seconds = dur.whole_seconds() - (dur.whole_minutes() * 60);
+
+    format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     let file = File::open(&args[1]).unwrap();
@@ -92,12 +124,26 @@ fn main() {
         }
     }
 
+    let start_point = &way[0];
+    let finish_point = &way[way.len() - 1];
+
+    let start_time: OffsetDateTime = start_point.time.unwrap().into();
+    let finish_time: OffsetDateTime = finish_point.time.unwrap().into();
+
+    let total_duration = finish_time - start_time;
+    let mut clean_duration = total_duration;
+
+    for (dur, _, _) in find_pauses(way) {
+        clean_duration -= dur;
+    }
 
 
     println!("Название: {:?}", track.name.clone().unwrap_or("Неизвестно".to_string()));
     println!("Протяженность: {:.2} км", way_distance(way) / 1000.0);
     println!("Общий подъем: {:.2} м", total_elevation);
     println!("GPS-точек на км: {:?}", way.len() / (way_distance(way) / 1000.0) as usize);
+    println!("Общее время: {}", format_duration(total_duration));
+    println!("Чистое время: {}", format_duration(clean_duration));
 
     let first = &opt_way[0].point();
     let mut v: Vec<Command> = vec![
