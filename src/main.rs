@@ -86,6 +86,29 @@ fn minimize_way(way: &Vec<Waypoint>, angle_mul: f64) -> Vec<Waypoint> {
     opt_way
 }
 
+// Максимальный непрерывный подъем на треке
+fn max_elevation(way: &Vec<Waypoint>) -> f64 {
+    let mut max_elev: f64 = 0.0;
+    let mut cur_elev: f64 = 0.0;
+
+    for (p1, p2) in way.iter().zip(way[1..].iter()) {
+        match (p1.elevation, p2.elevation) {
+            (Some(e1), Some(e2)) => {
+                if e2 >= e1 {
+                    cur_elev += e2 - e1
+                } else {
+                    max_elev =  if cur_elev > max_elev { cur_elev } else { max_elev };
+                    cur_elev = 0.0;
+                }
+            },
+            _ => {},
+        }
+
+    }
+
+    max_elev
+}
+
 fn find_pauses(
     way: &Vec<Waypoint>,
     dur_gap: Duration,
@@ -165,6 +188,7 @@ fn main() {
     println!("Название: {}", track.name.clone().unwrap_or("Неизвестно".to_string()));
     println!("Протяженность: {:.2} км", way_distance(way) / 1000.0);
     println!("Общий подъем: {:.2} м", total_elevation);
+    println!("Максимальный подъем: {:.2} м", max_elevation(way));
     println!("GPS-точек на км: {:?}", way.len() / (way_distance(way) / 1000.0) as usize);
     println!("Общее время: {}", format_duration(total_duration));
     println!("Чистое время: {}", format_duration(clean_duration));
