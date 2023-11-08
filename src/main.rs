@@ -10,10 +10,17 @@ use itertools::izip;
 use geoutils::Location;
 use gpx::read;
 use gpx::{Gpx, Track, Waypoint};
+use phf::phf_map;
 use svg::Document;
 use svg::node::element::Path;
 use svg::node::element::path::{Data, Command, Parameters, Position, Number};
 use time::{OffsetDateTime, Duration};
+
+
+static PAUSE_GAPS: phf::Map<&'static str, (Duration, f64)> = phf_map! {
+    "cycling" => (Duration::minutes(2), 5000.0 * (2.0 / 60.0)),
+};
+
 
 fn way_distance(way: &Vec<Waypoint>) -> f64 {
     let mut distance: f64 = 0.0;
@@ -79,7 +86,11 @@ fn minimize_way(way: &Vec<Waypoint>, angle_mul: f64) -> Vec<Waypoint> {
     opt_way
 }
 
-fn find_pauses(way: &Vec<Waypoint>) -> Vec<(Duration, &Waypoint, &Waypoint)> {
+fn find_pauses(
+    way: &Vec<Waypoint>,
+    dur_gap: Duration,
+    dist_gap: f64
+) -> Vec<(Duration, &Waypoint, &Waypoint)> {
     let mut pauses: Vec<(Duration, &Waypoint, &Waypoint)> = vec!();
     for (p1, p2) in way.iter().zip(way[1..].iter()) {
         match (p1.time, p2.time) {
@@ -88,11 +99,14 @@ fn find_pauses(way: &Vec<Waypoint>) -> Vec<(Duration, &Waypoint, &Waypoint)> {
                 let time_point2: OffsetDateTime = t2.into();
                 let pause_duration = (time_point2 - time_point1).abs();
 
-                // TODO порог в 5 минут требует коррекции в
-                // зависимости от типа активности
-                if  pause_duration > 5 * Duration::MINUTE {
-                    pauses.push((pause_duration, &p1, &p2));
-                }
+                if  pause_duration >= dur_gap {
+                    let pair = vec!(p1.clone(), p2.clone());
+                    let dist = way_distance(&pair);
+
+                    if dist <= dist_gap {
+                        pauses.push((pause_duration, &p1, &p2));
+                    };
+                };
 
             },
             _ => {},
@@ -142,7 +156,8 @@ fn main() {
     let total_duration = finish_time - start_time;
     let mut clean_duration = total_duration;
 
-    for (dur, _, _) in find_pauses(way) {
+    let (dur_gap, dist_gap) = PAUSE_GAPS.get("cycling").unwrap().clone();
+    for (dur, _, _) in find_pauses(way, dur_gap, dist_gap) {
         clean_duration -= dur;
     }
 
