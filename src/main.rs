@@ -3,6 +3,7 @@ extern crate gpx;
 use std::env;
 use std::io::BufReader;
 use std::fs::File;
+use std::f64::consts::PI;
 
 use euclid::{Angle, Vector2D};
 use itertools::izip;
@@ -28,9 +29,17 @@ fn way_distance(way: &Vec<Waypoint>) -> f64 {
     distance
 }
 
-fn minimize_way(way: &Vec<Waypoint>, angle_limit: Angle<f64>) -> Vec<Waypoint> {
+// Для некоторых задач достаточно приближенной модели gps-трека, которая
+// содержит лишь часть показаний оригинальных данных. Основная идея данного
+// алгоритма это - выбросить как можно больше точек на относительно прямых участках,
+// но при этом сохранить достаточно на изогнутых.
+// Параметр angle_mul отвечает за уровень спрямления выходного трека. Чем он больше,
+// тем больше будут спрямляться неровности. Определяет угол спрямления в диапозоне [0 .. PI / 2]
+// angle_mul = 0.3 => PI/2 * 0.3 = 0.471 радиан(27 градусов)
+fn minimize_way(way: &Vec<Waypoint>, angle_mul: f64) -> Vec<Waypoint> {
     if way.len() < 6 { return way.clone() };
 
+    let angle_limit = Angle { radians: PI / 2.0 * angle_mul };
     let mut opt_way: Vec<Waypoint> = vec!(way[0].clone(), way[1].clone());
     let prelast = way.len() - 2;
     let mut angle_gup: f64 = angle_limit.get();
@@ -110,7 +119,7 @@ fn main() {
     let track: &Track = &gpx.tracks[0];
 
     let way: &Vec<Waypoint> = &track.segments[0].points;
-    let opt_way: Vec<Waypoint> = minimize_way(way, Angle { radians: 0.2 });
+    let opt_way: Vec<Waypoint> = minimize_way(way, 12.0 / 90.0);
 
     let mut total_elevation: f64 = 0.0;
     for (p1, p2) in way.iter().zip(way[1..].iter()) {
@@ -138,7 +147,7 @@ fn main() {
     }
 
 
-    println!("Название: {:?}", track.name.clone().unwrap_or("Неизвестно".to_string()));
+    println!("Название: {}", track.name.clone().unwrap_or("Неизвестно".to_string()));
     println!("Протяженность: {:.2} км", way_distance(way) / 1000.0);
     println!("Общий подъем: {:.2} м", total_elevation);
     println!("GPS-точек на км: {:?}", way.len() / (way_distance(way) / 1000.0) as usize);
