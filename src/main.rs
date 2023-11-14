@@ -251,7 +251,7 @@ fn main() {
     println!("Общее время: {}", format_duration(total_duration));
     println!("Чистое время: {}", format_duration(clean_duration));
     println!("Средняя скорость: {:.2} км/ч", avg_speed);
-    println!("Макс. скорость: {:.2} км/ч", max_speed(way));
+    println!("Макс. скорость: {:.2} км/ч", max_speed(way) / 1000.0);
 
 
     let first = &opt_way[0].point();
