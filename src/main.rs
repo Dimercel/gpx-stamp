@@ -47,16 +47,17 @@ fn minimize_way(way: &Vec<Waypoint>, angle_mul: f64) -> Vec<Waypoint> {
     if way.len() < 6 { return way.clone() };
 
     let angle_limit = Angle { radians: PI / 2.0 * angle_mul };
-    let mut opt_way: Vec<Waypoint> = vec!(way[0].clone(), way[1].clone());
     let prelast = way.len() - 2;
-    let mut angle_gup: f64 = angle_limit.get();
     let zero_vec = Vector2D::new(0.0, 0.0);
-
-    // Первая и последняя точка не должны участвовать в
-    // алгоритме, но всегда должны присутствовать в результате
     let triple_way = izip!(way[0..prelast].iter(),
                            way[1..prelast].iter(),
                            way[2..prelast].iter());
+    let mut angle_gup: f64 = angle_limit.get();
+    // Если последовательно применять алгоритм к его же результату, то вторая
+    // точка всегда будет выбрасываться, пока в пути не останутся только две точки.
+    // Такое поведение нам не нужно.
+    // Первая и последняя точки должны обязательно содержаться в результате
+    let mut opt_way: Vec<Waypoint> = vec!(way[0].clone(), way[1].clone());
 
     for (p1, p2, p3) in triple_way {
         let v1: Vector2D<f64, ()> = Vector2D::new(
@@ -81,7 +82,7 @@ fn minimize_way(way: &Vec<Waypoint>, angle_mul: f64) -> Vec<Waypoint> {
 
     }
 
-    opt_way.push(way[prelast + 1].to_owned());
+    opt_way.push(way[prelast + 1].clone());
 
     opt_way
 }
