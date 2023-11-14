@@ -34,6 +34,7 @@ struct Args {
     text: bool,
 }
 
+
 fn way_distance(way: &Vec<Waypoint>) -> f64 {
     let mut distance: f64 = 0.0;
 
@@ -122,6 +123,33 @@ fn max_elevation(way: &Vec<Waypoint>) -> f64 {
     max_elev
 }
 
+// Максимальный показатель скорости между двумя
+// последовательными gps-показателями
+fn max_speed(way: &Vec<Waypoint>) -> f64 {
+    let mut max_speed: f64 = 0.0;
+
+    for (p1, p2) in way.iter().zip(way[1..].iter()) {
+        let from = Location::new(p1.point().y(), p1.point().x());
+        let to = Location::new(p2.point().y(), p2.point().x());
+
+        // TODO возможно стоит ввести ограничение на минимальное
+        // расстояние между точками для поиска макс. скорости
+        let distance = from.distance_to(&to).unwrap().meters();
+
+        let time_point1: OffsetDateTime = p1.time.unwrap().into();
+        let time_point2: OffsetDateTime = p2.time.unwrap().into();
+        let duration = (time_point2 - time_point1).abs().whole_seconds();
+
+        let speed = distance / (duration as f64 / Duration::HOUR.whole_seconds() as f64);
+
+        if speed > max_speed {
+            max_speed = speed;
+        }
+    }
+
+    max_speed
+}
+
 fn find_pauses(
     way: &Vec<Waypoint>,
     dur_gap: Duration,
@@ -152,6 +180,7 @@ fn find_pauses(
     pauses
 }
 
+// TODO переделать на trait в Duration
 fn format_duration(dur: Duration) -> String {
     let hours = dur.whole_hours();
     let minutes = dur.whole_minutes() - (hours * 60);
@@ -193,6 +222,7 @@ fn main() {
         }
     }
 
+    let distance = way_distance(way);
     let start_point = &way[0];
     let finish_point = &way[way.len() - 1];
 
@@ -207,14 +237,22 @@ fn main() {
         clean_duration -= dur;
     }
 
+    let clean_dur_hours = clean_duration.whole_seconds() as f64 /
+        Duration::HOUR.whole_seconds() as f64;
+    let avg_speed = distance / clean_dur_hours / 1000.0;
 
-    println!("Название: {}", track.name.clone().unwrap_or("Неизвестно".to_string()));
-    println!("Протяженность: {:.2} км", way_distance(way) / 1000.0);
+
+    println!("Трек: {}", track.name.clone().unwrap_or("Неизвестно".to_string()));
+    println!("Дата: {}", way[0].time.unwrap().format().unwrap());
+    println!("Протяженность: {:.2} км", distance / 1000.0);
     println!("Общий подъем: {:.2} м", total_elevation);
     println!("Максимальный подъем: {:.2} м", max_elevation(way));
     println!("GPS-точек на км: {:?}", way.len() / (way_distance(way) / 1000.0) as usize);
     println!("Общее время: {}", format_duration(total_duration));
     println!("Чистое время: {}", format_duration(clean_duration));
+    println!("Средняя скорость: {:.2} км/ч", avg_speed);
+    println!("Макс. скорость: {:.2} км/ч", max_speed(way));
+
 
     let first = &opt_way[0].point();
     let mut v: Vec<Command> = vec![
