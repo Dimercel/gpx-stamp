@@ -1,10 +1,10 @@
 extern crate gpx;
 
-use std::env;
 use std::io::BufReader;
 use std::fs::File;
 use std::f64::consts::PI;
 
+use clap::Parser;
 use euclid::{Angle, Vector2D};
 use itertools::izip;
 use geoutils::Location;
@@ -21,6 +21,18 @@ static PAUSE_GAPS: phf::Map<&'static str, (Duration, f64)> = phf_map! {
     "cycling" => (Duration::minutes(2), 5000.0 * (2.0 / 60.0)),
 };
 
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Path to GPX-file
+    #[arg()]
+    path: String,
+
+    /// Text mode
+    #[arg(long, default_value_t = false)]
+    text: bool,
+}
 
 fn way_distance(way: &Vec<Waypoint>) -> f64 {
     let mut distance: f64 = 0.0;
@@ -149,9 +161,19 @@ fn format_duration(dur: Duration) -> String {
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let file = File::open(&args[1]).unwrap();
-    let reader = BufReader::new(file);
+    let args = Args::parse();
+
+    if !args.text {
+        println!("На данный момент поддерживается только текстовый режим!");
+        return ();
+    }
+
+    let file = File::open(args.path);
+    if file.is_err() {
+        println!("GPX-файл не корректный или не существует!");
+        return ();
+    }
+    let reader = BufReader::new(file.unwrap());
 
     let gpx: Gpx = read(reader).unwrap();
     let track: &Track = &gpx.tracks[0];
