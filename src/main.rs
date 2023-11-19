@@ -244,14 +244,23 @@ fn main() {
 
     println!("Трек: {}", track.name.clone().unwrap_or("Неизвестно".to_string()));
     println!("Дата: {}", way[0].time.unwrap().format().unwrap());
+    println!("Тип активности: {}", track.type_.clone().unwrap_or("Неизвестно".to_string()));
     println!("Протяженность: {:.2} км", distance / 1000.0);
-    println!("Общий подъем: {:.2} м", total_elevation);
-    println!("Максимальный подъем: {:.2} м", max_elevation(way));
-    println!("GPS-точек на км: {:?}", way.len() / (way_distance(way) / 1000.0) as usize);
+    println!("Создано: {}", gpx.creator.clone().unwrap_or("Неизвестно".to_string()));
+
+    println!("\nВремя: \n");
     println!("Общее время: {}", format_duration(total_duration));
     println!("Чистое время: {}", format_duration(clean_duration));
+
+    println!("\nСкорость: \n");
     println!("Средняя скорость: {:.2} км/ч", avg_speed);
     println!("Макс. скорость: {:.2} км/ч", max_speed(way) / 1000.0);
+
+    println!("\nПодъем: \n");
+    println!("Общий подъем: {:.2} м", total_elevation);
+    println!("Максимальный подъем: {:.2} м", max_elevation(way));
+
+    println!("\nGPS-точек на км: {:?}", way.len() / (way_distance(way) / 1000.0) as usize);
 
 
     let first = &opt_way[0].point();
