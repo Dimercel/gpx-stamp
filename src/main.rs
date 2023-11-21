@@ -214,7 +214,7 @@ fn main() {
     let track: &Track = &gpx.tracks[0];
 
     let way: &Vec<Waypoint> = &track.segments[0].points;
-    let opt_way: Vec<Waypoint> = minimize_way(way, 12.0 / 90.0);
+    // let opt_way: Vec<Waypoint> = minimize_way(way, 12.0 / 90.0);
 
     let mut total_elevation: f64 = 0.0;
     for (p1, p2) in way.iter().zip(way[1..].iter()) {
@@ -261,53 +261,53 @@ fn main() {
     println!("Протяженность: {:.2} км", distance / 1000.0);
     println!("Создано: {}", gpx.creator.clone().unwrap_or(unknown.clone()));
 
-    println!("\nВремя: \n");
-    println!("Общее время: {}", format_duration(total_duration));
-    println!("Чистое время: {}", format_duration(clean_duration));
+    println!("\nВремя:");
+    println!("Общее: {}", format_duration(total_duration));
+    println!("Чистое: {}", format_duration(clean_duration));
 
-    println!("\nСкорость: \n");
-    println!("Средняя скорость: {:.2} км/ч", avg_speed);
+    println!("\nСкорость:");
+    println!("Средняя: {:.2} км/ч", avg_speed);
 
     if max_speed.is_some() {
-        println!("Макс. скорость: {:.2} км/ч", max_speed.unwrap() / 1000.0);
+        println!("Максимальная: {:.2} км/ч", max_speed.unwrap() / 1000.0);
     } else {
-        println!("Макс. скорость: {}", unknown);
+        println!("Максимальная: {}", unknown);
     }
 
-    println!("\nПодъем: \n");
-    println!("Общий подъем: {:.2} м", total_elevation);
-    println!("Максимальный подъем: {:.2} м", max_elevation(way));
+    println!("\nПодъем:");
+    println!("Общий: {:.2} м", total_elevation);
+    println!("Максимальный: {:.2} м", max_elevation(way));
 
-    println!("\nGPS-точек на км: {:?}", way.len() / (way_distance(way) / 1000.0) as usize);
+    println!("\nGPS-показаний на км: {:?}", way.len() / (way_distance(way) / 1000.0) as usize);
 
 
-    let first = &opt_way[0].point();
-    let mut v: Vec<Command> = vec![
-        Command::Move(
-            Position::Absolute,
-            Parameters::from(vec![first.x() as Number * 10.0, first.y() as Number * 10.0]))
-    ];
-    for p in opt_way {
-        let x = p.point().x() as Number * 10.0;
-        let y = p.point().y() as Number * 10.0;
+    // let first = &opt_way[0].point();
+    // let mut v: Vec<Command> = vec![
+    //     Command::Move(
+    //         Position::Absolute,
+    //         Parameters::from(vec![first.x() as Number * 10.0, first.y() as Number * 10.0]))
+    // ];
+    // for p in opt_way {
+    //     let x = p.point().x() as Number * 10.0;
+    //     let y = p.point().y() as Number * 10.0;
 
-        v.push(Command::Line(Position::Absolute, Parameters::from(vec![x.clone(), y.clone()])));
-    }
-    let data = Data::from(v);
+    //     v.push(Command::Line(Position::Absolute, Parameters::from(vec![x.clone(), y.clone()])));
+    // }
+    // let data = Data::from(v);
 
-    let path = Path::new()
-        .set("fill", "none")
-        .set("stroke", "black")
-        .set("stroke-width", 0.01)
-        .set("stroke-opacity", 1)
-        .set("stroke-linecap", "round")
-        .set("stroke-linejoin", "round")
-        .set("fill", "none")
-        .set("d", data);
+    // let path = Path::new()
+    //     .set("fill", "none")
+    //     .set("stroke", "black")
+    //     .set("stroke-width", 0.01)
+    //     .set("stroke-opacity", 1)
+    //     .set("stroke-linecap", "round")
+    //     .set("stroke-linejoin", "round")
+    //     .set("fill", "none")
+    //     .set("d", data);
 
-    let document = Document::new()
-        .set("viewBox", (414, 525, 5, 5))
-        .add(path);
+    // let document = Document::new()
+    //     .set("viewBox", (414, 525, 5, 5))
+    //     .add(path);
 
-    svg::save("image.svg", &document).unwrap();
+    // svg::save("image.svg", &document).unwrap();
 }
