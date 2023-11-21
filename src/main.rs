@@ -39,12 +39,14 @@ struct Args {
 fn way_distance(way: &Vec<Waypoint>) -> f64 {
     let mut distance: f64 = 0.0;
 
-    for (p1, p2) in way.iter().zip(way[1..].iter()) {
-        let from = Location::new(p1.point().y(), p1.point().x());
-        let to = Location::new(p2.point().y(), p2.point().x());
+    if way.len() > 1 {
+        for (p1, p2) in way.iter().zip(way[1..].iter()) {
+            let from = Location::new(p1.point().y(), p1.point().x());
+            let to = Location::new(p2.point().y(), p2.point().x());
 
-        // TODO Не учитывает высоту
-        distance += from.distance_to(&to).unwrap().meters()
+            // TODO Не учитывает высоту
+            distance += from.distance_to(&to).unwrap().meters()
+        }
     }
 
     distance
@@ -102,26 +104,22 @@ fn minimize_way(way: &Vec<Waypoint>, angle_mul: f64) -> Vec<Waypoint> {
 }
 
 // Максимальный непрерывный подъем на треке
-fn max_elevation(way: &Vec<Waypoint>) -> f64 {
+fn max_elevation(way: &Vec<Waypoint>) -> Option<f64> {
     let mut max_elev: f64 = 0.0;
     let mut cur_elev: f64 = 0.0;
 
-    for (p1, p2) in way.iter().zip(way[1..].iter()) {
-        match (p1.elevation, p2.elevation) {
-            (Some(e1), Some(e2)) => {
-                if e2 >= e1 {
-                    cur_elev += e2 - e1
-                } else {
-                    max_elev =  if cur_elev > max_elev { cur_elev } else { max_elev };
-                    cur_elev = 0.0;
-                }
-            },
-            _ => {},
+    if way.len() > 1 {
+        for (p1, p2) in way.iter().zip(way[1..].iter()) {
+            if p2.elevation? >= p1.elevation? {
+                cur_elev += p2.elevation? - p1.elevation?;
+            } else {
+                max_elev =  if cur_elev > max_elev { cur_elev } else { max_elev };
+                cur_elev = 0.0;
+            }
         }
-
     }
 
-    max_elev
+    Some(max_elev)
 }
 
 // Максимальный показатель скорости между двумя
@@ -136,15 +134,9 @@ fn max_speed(way: &Vec<Waypoint>) -> Option<f64> {
         // TODO возможно стоит ввести ограничение на минимальное
         // расстояние между точками для поиска макс. скорости
         let distance = from.distance_to(&to).unwrap().meters();
-        let mut duration: i64 = 0;
-        match (p1.time, p2.time) {
-            (Some(tp1), Some(tp2)) => {
-                let t1: OffsetDateTime = tp1.into();
-                let t2: OffsetDateTime = tp2.into();
-                duration = (t2 - t1).abs().whole_seconds();
-            },
-            _ => {return None},
-        }
+        let t1: OffsetDateTime = p1.time?.into();
+        let t2: OffsetDateTime = p2.time?.into();
+        let duration = (t2 - t1).abs().whole_seconds();
 
         let speed = distance / (duration as f64 / Duration::HOUR.whole_seconds() as f64);
 
@@ -216,36 +208,55 @@ fn main() {
     let way: &Vec<Waypoint> = &track.segments[0].points;
     // let opt_way: Vec<Waypoint> = minimize_way(way, 12.0 / 90.0);
 
-    let mut total_elevation: f64 = 0.0;
-    for (p1, p2) in way.iter().zip(way[1..].iter()) {
-        match (p1.elevation, p2.elevation) {
-            (Some(e1), Some(e2)) => {
-                if e2 > e1 {
-                    total_elevation += e2 - e1;
-                }
-            },
-            _ => {},
+    let mut total_elevation: Option<f64> = None;
+    if way.len() > 2 {
+        total_elevation = Some(0.0);
+        for (p1, p2) in way.iter().zip(way[1..].iter()) {
+            match (p1.elevation, p2.elevation) {
+                (Some(e1), Some(e2)) => {
+                    if e2 > e1 {
+                        total_elevation = Some(total_elevation.unwrap() + e2 - e1);
+                    }
+                },
+                _ => {},
+            }
         }
     }
+    let max_elevation = max_elevation(way);
 
     let distance = way_distance(way);
     let start_point = &way[0];
     let finish_point = &way[way.len() - 1];
 
-    let start_time: OffsetDateTime = start_point.time.unwrap().into();
-    let finish_time: OffsetDateTime = finish_point.time.unwrap().into();
+    let start_time = start_point.time;
+    let finish_time = finish_point.time;
 
-    let total_duration = finish_time - start_time;
-    let mut clean_duration = total_duration;
+    let mut total_duration: Option<Duration> = None;
+    let mut clean_duration: Option<Duration> = None;
+    let mut clean_dur_hours: Option<f64> = None;
+    let mut avg_speed: Option<f64> = None;
 
-    let (dur_gap, dist_gap) = PAUSE_GAPS.get("cycling").unwrap().clone();
-    for (dur, _, _) in find_pauses(way, dur_gap, dist_gap) {
-        clean_duration -= dur;
-    }
+    match (start_time, finish_time) {
+        (Some(x), Some(y)) => {
+            let st: OffsetDateTime = x.into();
+            let ft: OffsetDateTime = y.into();
 
-    let clean_dur_hours = clean_duration.whole_seconds() as f64 /
-        Duration::HOUR.whole_seconds() as f64;
-    let avg_speed = distance / clean_dur_hours / 1000.0;
+            total_duration = Some(ft - st);
+            clean_duration = total_duration.clone();
+
+            let (dur_gap, dist_gap) = PAUSE_GAPS.get("cycling").unwrap().clone();
+            for (dur, _, _) in find_pauses(way, dur_gap, dist_gap) {
+                clean_duration = Some(clean_duration.unwrap() - dur);
+            }
+
+            clean_dur_hours = Some(clean_duration.unwrap().whole_seconds() as f64 /
+                                   Duration::HOUR.whole_seconds() as f64);
+
+            avg_speed = Some(distance / clean_dur_hours.unwrap() / 1000.0);
+        },
+        _ => {}
+    };
+
     let max_speed = max_speed(way);
     let unknown = UNKNOWN_LABEL.to_string();
     let date = way[0].time;
@@ -253,20 +264,26 @@ fn main() {
 
     println!("Трек: {}", track.name.clone().unwrap_or(unknown.clone()));
     if date.is_some() {
-        println!("Дата: {}", date.unwrap().format().unwrap());
+        println!("Дата(UTC): {}", date.unwrap().format().unwrap());
     } else {
-        println!("Дата: {}", unknown.clone());
+        println!("Дата(UTC): {}", unknown.clone());
     }
     println!("Тип активности: {}", track.type_.clone().unwrap_or(unknown.clone()));
     println!("Протяженность: {:.2} км", distance / 1000.0);
     println!("Создано: {}", gpx.creator.clone().unwrap_or(unknown.clone()));
 
     println!("\nВремя:");
-    println!("Общее: {}", format_duration(total_duration));
-    println!("Чистое: {}", format_duration(clean_duration));
+    println!("Общее: {}", if total_duration.is_some()
+             {format_duration(total_duration.unwrap())} else {unknown.clone()});
+    println!("Чистое: {}", if clean_duration.is_some()
+             {format_duration(clean_duration.unwrap())} else {unknown.clone()});
 
     println!("\nСкорость:");
-    println!("Средняя: {:.2} км/ч", avg_speed);
+    if avg_speed.is_some() {
+        println!("Средняя: {:.2} км/ч", avg_speed.unwrap());
+    } else {
+        println!("Средняя: {} км/ч", unknown);
+    }
 
     if max_speed.is_some() {
         println!("Максимальная: {:.2} км/ч", max_speed.unwrap() / 1000.0);
@@ -275,8 +292,16 @@ fn main() {
     }
 
     println!("\nПодъем:");
-    println!("Общий: {:.2} м", total_elevation);
-    println!("Максимальный: {:.2} м", max_elevation(way));
+    if total_elevation.is_some() {
+        println!("Общий: {:.2} м", total_elevation.unwrap());
+    } else {
+        println!("Общий: {} м", unknown);
+    }
+    if max_elevation.is_some() {
+        println!("Максимальный: {:.2} м", max_elevation.unwrap())
+    } else {
+        println!("Максимальный: {} м", unknown);
+    }
 
     println!("\nGPS-показаний на км: {:?}", way.len() / (way_distance(way) / 1000.0) as usize);
 
