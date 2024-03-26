@@ -12,16 +12,14 @@ use gpx::{Gpx, Waypoint};
 // use svg::Document;
 // use svg::node::element::Path;
 // use svg::node::element::path::{Data, Command, Parameters, Position, Number};
-use time::Duration;
-use time::format_description::well_known::Iso8601;
 
 use crate::stamp::Stamp;
+use crate::render::to_text;
 
 pub mod stat;
 pub mod stamp;
+pub mod render;
 
-
-const UNKNOWN_LABEL: &str = "Неизвестно";
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -87,13 +85,6 @@ fn minimize_way(way: &Vec<Waypoint>, angle_mul: f64) -> Vec<Waypoint> {
     opt_way
 }
 
-fn format_duration(dur: Duration) -> String {
-    let hours = dur.whole_hours();
-    let minutes = dur.whole_minutes() - (hours * 60);
-    let seconds = dur.whole_seconds() - (dur.whole_minutes() * 60);
-
-    format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
-}
 
 fn main() {
     let args = Args::parse();
@@ -114,54 +105,7 @@ fn main() {
     let stamp = Stamp::from(&gpx);
     // let opt_way: Vec<Waypoint> = minimize_way(way, 12.0 / 90.0);
 
-    let unknown = UNKNOWN_LABEL.to_string();
-
-    let head = &stamp.header;
-    let mut date = unknown.clone();
-    if head.date.is_some() {
-        date = head.date.unwrap().format(&Iso8601::DEFAULT).unwrap()
-    }
-    println!("Трек: {}", head.track.clone().unwrap_or(unknown.clone()));
-    println!("Дата(UTC): {}", date);
-    println!("Тип активности: {}", head.activity.to_string());
-    println!("Протяженность: {:.2} км", head.length as f64 / 1000.0);
-    println!("Создано: {}", head.device.clone().unwrap_or(unknown.clone()));
-
-    println!("\nВремя:");
-    let time = &stamp.timing;
-    let mut total_dur = unknown.clone();
-    let mut pure_dur = unknown.clone();
-    if time.is_some() {
-        total_dur = format_duration(time.unwrap().total);
-        pure_dur = format_duration(time.unwrap().pure);
-    }
-    println!("Общее: {}", total_dur);
-    println!("Чистое: {}", pure_dur);
-
-    println!("\nСкорость:");
-    let velo = &stamp.velocity;
-    let mut avg_speed = unknown.clone();
-    let mut max_speed = unknown.clone();
-    if velo.is_some() {
-        avg_speed = format!("{:.2}", velo.unwrap().average as f64 / 1000.0);
-        max_speed = format!("{:.2}", velo.unwrap().maximum as f64 / 1000.0);
-    }
-    println!("Средняя: {} км/ч", avg_speed);
-    println!("Максимальная: {} км/ч", max_speed);
-
-    println!("\nПодъем:");
-    let elev = &stamp.elevation;
-    let mut total_elev = unknown.clone();
-    let mut max_elev = unknown.clone();
-    if elev.is_some() {
-        total_elev = elev.unwrap().total.to_string();
-        max_elev = elev.unwrap().maximum.to_string();
-    }
-    println!("Общий: {} м", total_elev);
-    println!("Максимальный: {} м", max_elev);
-
-    println!("\nGPS-показаний на км: {:?}", head.gps_density);
-
+    print!("{}", to_text(&stamp));
 
     // let first = &opt_way[0].point();
     // let mut v: Vec<Command> = vec![
