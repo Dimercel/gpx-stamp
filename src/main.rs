@@ -2,6 +2,7 @@ extern crate gpx;
 
 use std::io::BufReader;
 use std::fs::File;
+use std::fs;
 use std::f64::consts::PI;
 
 use clap::Parser;
@@ -9,12 +10,9 @@ use euclid::{Angle, Vector2D};
 use itertools::izip;
 use gpx::read;
 use gpx::{Gpx, Waypoint};
-// use svg::Document;
-// use svg::node::element::Path;
-// use svg::node::element::path::{Data, Command, Parameters, Position, Number};
 
 use crate::stamp::Stamp;
-use crate::render::to_text;
+use crate::render::{to_text, to_svg};
 
 pub mod stat;
 pub mod stamp;
@@ -103,37 +101,12 @@ fn main() {
 
     let gpx: Gpx = read(reader).unwrap();
     let stamp = Stamp::from(&gpx);
-    // let opt_way: Vec<Waypoint> = minimize_way(way, 12.0 / 90.0);
 
     print!("{}", to_text(&stamp));
 
-    // let first = &opt_way[0].point();
-    // let mut v: Vec<Command> = vec![
-    //     Command::Move(
-    //         Position::Absolute,
-    //         Parameters::from(vec![first.x() as Number * 10.0, first.y() as Number * 10.0]))
-    // ];
-    // for p in opt_way {
-    //     let x = p.point().x() as Number * 10.0;
-    //     let y = p.point().y() as Number * 10.0;
+    let track = &gpx.tracks[0];
+    let way: &Vec<Waypoint> = &track.segments[0].points;
+    let opt_way: Vec<Waypoint> = minimize_way(way, 12.0 / 90.0);
 
-    //     v.push(Command::Line(Position::Absolute, Parameters::from(vec![x.clone(), y.clone()])));
-    // }
-    // let data = Data::from(v);
-
-    // let path = Path::new()
-    //     .set("fill", "none")
-    //     .set("stroke", "black")
-    //     .set("stroke-width", 0.01)
-    //     .set("stroke-opacity", 1)
-    //     .set("stroke-linecap", "round")
-    //     .set("stroke-linejoin", "round")
-    //     .set("fill", "none")
-    //     .set("d", data);
-
-    // let document = Document::new()
-    //     .set("viewBox", (414, 525, 5, 5))
-    //     .add(path);
-
-    // svg::save("image.svg", &document).unwrap();
+    to_svg(&stamp, &opt_way);
 }

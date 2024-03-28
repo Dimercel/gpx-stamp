@@ -1,5 +1,9 @@
+use gpx::Waypoint;
 use time::Duration;
 use time::format_description::well_known::Iso8601;
+use svg::Document;
+use svg::node::element::Path;
+use svg::node::element::path::{Data, Command, Parameters, Position, Number};
 
 use crate::stamp::Stamp;
 
@@ -82,4 +86,72 @@ pub fn to_text(stamp: &Stamp) -> String {
     );
 
     format!("{}\n{}\n{}\n{}", head_info, time_info, velo_info, elev_info)
+}
+
+fn border_rect(way: &Vec<Waypoint>) -> Option<(f64, f64, f64, f64)> {
+    let first = &way[0].point();
+
+    let (mut maxx, mut minx) = (first.x(), first.x());
+    let (mut maxy, mut miny) = (first.y(), first.y());
+
+    for p in way {
+        let x = p.point().x();
+        let y = p.point().y();
+
+        maxx = if x > maxx { x } else { maxx };
+        minx = if x < minx { x } else { minx };
+        maxy = if y > maxy { y } else { maxy };
+        miny = if y < miny { y } else { miny };
+
+    }
+
+    Some((maxx, minx, maxy, miny))
+}
+
+
+fn svg_route(way: &Vec<Waypoint>, width: f64) -> Data {
+    let (maxx, minx, maxy, miny) = border_rect(way).unwrap();
+    let border_width = (maxx - minx).abs();
+    let border_height = (maxy - miny).abs();
+    let scale_factor = width / border_width;
+
+    let first = &way[0].point();
+    let mut pipeline: Vec<Command> = vec![
+        Command::Move(
+            Position::Absolute,
+            Parameters::from(vec![((first.x() - minx) * scale_factor) as Number,
+                                  ((first.y() - miny) * scale_factor) as Number]))
+    ];
+    for p in way {
+        let x = ((p.point().x() - minx) * scale_factor) as Number;
+        let y = ((p.point().y() - miny) * scale_factor) as Number;
+
+        pipeline.push(Command::Line(Position::Absolute,
+                                    Parameters::from(vec![x.clone(), y.clone()])));
+    }
+
+    Data::from(pipeline)
+}
+
+pub fn to_svg(stamp: &Stamp, way: &Vec<Waypoint>) -> String {
+    let width = 300.0f64;
+    let data = svg_route(way, width);
+
+    let path = Path::new()
+        .set("fill", "none")
+        .set("stroke", "black")
+        .set("stroke-width", 0.5)
+        .set("stroke-opacity", 1)
+        .set("stroke-linecap", "round")
+        .set("stroke-linejoin", "round")
+        .set("fill", "none")
+        .set("d", data);
+
+    let document = Document::new()
+        .set("viewBox", (0, 0, width, width))
+        .add(path);
+
+    svg::save("image.svg", &document).unwrap();
+
+    "xlc".to_string()
 }
