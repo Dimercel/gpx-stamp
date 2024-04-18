@@ -133,7 +133,7 @@ fn svg_route(way: &Vec<Waypoint>, width: f64) -> Data {
     Data::from(pipeline)
 }
 
-pub fn to_svg(stamp: &Stamp, way: &Vec<Waypoint>) -> String {
+pub fn to_svg(stamp: &Stamp, way: &Vec<Waypoint>) -> Document {
     let width = 300.0f64;
     let data = svg_route(way, width);
 
@@ -151,7 +151,5 @@ pub fn to_svg(stamp: &Stamp, way: &Vec<Waypoint>) -> String {
         .set("viewBox", (0, 0, width, width))
         .add(path);
 
-    svg::save("image.svg", &document).unwrap();
-
-    "xlc".to_string()
+    document
 }

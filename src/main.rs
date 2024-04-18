@@ -1,9 +1,10 @@
 extern crate gpx;
 
+use std::io::{stdin, stdout, Write};
 use std::io::BufReader;
 use std::fs::File;
-use std::fs;
 use std::f64::consts::PI;
+use std::path::Path;
 
 use clap::Parser;
 use euclid::{Angle, Vector2D};
@@ -28,7 +29,7 @@ struct Args {
 
     /// Text mode
     #[arg(long, default_value_t = false)]
-    text: bool,
+    svg: bool,
 }
 
 
@@ -87,12 +88,8 @@ fn minimize_way(way: &Vec<Waypoint>, angle_mul: f64) -> Vec<Waypoint> {
 fn main() {
     let args = Args::parse();
 
-    if !args.text {
-        println!("На данный момент поддерживается только текстовый режим!");
-        return ();
-    }
 
-    let file = File::open(args.path);
+    let file = File::open(args.path.clone());
     if file.is_err() {
         println!("GPX-файл не корректный или не существует!");
         return ();
@@ -102,11 +99,29 @@ fn main() {
     let gpx: Gpx = read(reader).unwrap();
     let stamp = Stamp::from(&gpx);
 
-    print!("{}", to_text(&stamp));
+    if !args.svg {
+        print!("{}", to_text(&stamp));
+        return ();
+    }
 
     let track = &gpx.tracks[0];
     let way: &Vec<Waypoint> = &track.segments[0].points;
     let opt_way: Vec<Waypoint> = minimize_way(way, 12.0 / 90.0);
 
-    to_svg(&stamp, &opt_way);
+    let svg_path = format!("{}.svg", args.path);
+    if Path::new(&svg_path).exists() {
+        print!("Файл \"{}\" уже существует! Заменить его? [Д/н]:", svg_path);
+        stdout().flush().unwrap();
+
+        let mut buffer = String::new();
+        stdin().read_line(&mut buffer).unwrap();
+
+        match buffer.trim_end() {
+            "Д" => svg::save(svg_path, &to_svg(&stamp, &opt_way)).expect("Не удалось сохранить файл!"),
+            "" => svg::save(svg_path, &to_svg(&stamp, &opt_way)).expect("Не удалось сохранить файл!"),
+            _ => println!("Отменено!"),
+        };
+    } else {
+        let _ = svg::save(svg_path, &to_svg(&stamp, &opt_way));
+    };
 }
