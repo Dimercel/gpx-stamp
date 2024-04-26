@@ -122,6 +122,7 @@ fn main() {
             _ => println!("Отменено!"),
         };
     } else {
-        let _ = svg::save(svg_path, &to_svg(&stamp, &opt_way));
+        let _ = svg::save(&svg_path, &to_svg(&stamp, &opt_way));
+        println!("Сохранено: {}", &svg_path);
     };
 }
