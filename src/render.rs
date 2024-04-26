@@ -2,7 +2,7 @@ use gpx::Waypoint;
 use time::Duration;
 use time::format_description::well_known::Iso8601;
 use svg::Document;
-use svg::node::element::Path;
+use svg::node::element::{Path, Rectangle, Text};
 use svg::node::element::path::{Data, Command, Parameters, Position, Number};
 
 use crate::stamp::Stamp;
@@ -109,7 +109,7 @@ fn border_rect(way: &Vec<Waypoint>) -> Option<(f64, f64, f64, f64)> {
 }
 
 
-fn svg_route(way: &Vec<Waypoint>, width: f64) -> Data {
+fn svg_route(way: &Vec<Waypoint>, width: f64) -> (Data, f64) {
     let (maxx, minx, maxy, miny) = border_rect(way).unwrap();
     let border_width = (maxx - minx).abs();
     let border_height = (maxy - miny).abs();
@@ -130,26 +130,40 @@ fn svg_route(way: &Vec<Waypoint>, width: f64) -> Data {
                                     Parameters::from(vec![x.clone(), y.clone()])));
     }
 
-    Data::from(pipeline)
+    (Data::from(pipeline), border_height * scale_factor)
 }
 
 pub fn to_svg(stamp: &Stamp, way: &Vec<Waypoint>) -> Document {
     let width = 300.0f64;
-    let data = svg_route(way, width);
+    let (data, way_height) = svg_route(way, width);
 
-    let path = Path::new()
+    let way_graph = Path::new()
         .set("fill", "none")
-        .set("stroke", "black")
-        .set("stroke-width", 0.5)
+        .set("stroke", "seagreen")
+        .set("stroke-width", 0.8)
         .set("stroke-opacity", 1)
         .set("stroke-linecap", "round")
         .set("stroke-linejoin", "round")
         .set("fill", "none")
+        .set("transform", format!("translate(10, {}), scale(1, -1)", way_height + 10.0))
         .set("d", data);
 
     let document = Document::new()
-        .set("viewBox", (0, 0, width, width))
-        .add(path);
+        .set("viewBox", (0, 0, width + 20.0, width * 2.0))
+        // Подложка
+        .add(Rectangle::new() 
+             .set("width", "100%")
+             .set("height", "100%")
+             .set("fill", "white")
+        )
+        .add(Rectangle::new()
+             .set("x", 10.0)
+             .set("y", 10.0)
+             .set("width", width)
+             .set("height", width * 2.0)
+             .set("fill", "lavender")
+        )
+        .add(way_graph);
 
     document
 }
