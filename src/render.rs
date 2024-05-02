@@ -1,4 +1,5 @@
 use gpx::Waypoint;
+use svg::node::Text as NodeText;
 use time::Duration;
 use time::format_description::well_known::Iso8601;
 use svg::Document;
@@ -133,37 +134,98 @@ fn svg_route(way: &Vec<Waypoint>, width: f64) -> (Data, f64) {
     (Data::from(pipeline), border_height * scale_factor)
 }
 
+fn svg_elevation(way: &Vec<Waypoint>, width: f64) -> (Data, f64) {
+    let first = &way[0];
+    let (mut max_elev, mut min_elev) = (first.elevation.unwrap(), first.elevation.unwrap());
+    for p in way {
+        max_elev = if p.elevation.unwrap() > max_elev { p.elevation.unwrap() } else { max_elev };
+        min_elev = if p.elevation.unwrap() < min_elev { p.elevation.unwrap() } else { min_elev };
+    }
+
+    let height = width;
+    let scale_factor: f64 = height / max_elev;
+    let step: f64 = width / way.len() as f64;
+
+    let mut pipeline: Vec<Command> = vec![
+        Command::Move(
+            Position::Absolute,
+            Parameters::from((0.0f64, 0.0f64))
+        )
+    ];
+    let mut step_num = 0;
+    for p in way {
+        let x = step_num as f64 * step;
+        let y = p.elevation.unwrap() as f64 * scale_factor;
+
+        pipeline.push(Command::Line(Position::Absolute,
+                                    Parameters::from((x, y))));
+
+        step_num += 1;
+    }
+
+    pipeline.push(Command::Line(Position::Absolute, Parameters::from((width, 0.0f64))));
+    pipeline.push(Command::Line(Position::Absolute, Parameters::from((0.0f64, 0.0f64))));
+
+    (Data::from(pipeline), width)
+}
+
 pub fn to_svg(stamp: &Stamp, way: &Vec<Waypoint>) -> Document {
     let width = 300.0f64;
-    let (data, way_height) = svg_route(way, width);
+    let padding = 10.0f64;
+    let (way_points, way_height) = svg_route(way, width);
+    let (elev_points, elev_height) = svg_elevation(way, width);
 
     let way_graph = Path::new()
-        .set("fill", "none")
-        .set("stroke", "seagreen")
+        .set("stroke", "purple")
         .set("stroke-width", 0.8)
         .set("stroke-opacity", 1)
         .set("stroke-linecap", "round")
         .set("stroke-linejoin", "round")
         .set("fill", "none")
-        .set("transform", format!("translate(10, {}), scale(1, -1)", way_height + 10.0))
-        .set("d", data);
+        .set("transform", format!("translate({}, {}), scale(1, -1)", padding, way_height + padding))
+        .set("d", way_points);
+
+    let elev_graph = Path::new()
+        .set("stroke", "purple")
+        .set("stroke-width", 0.8)
+        .set("stroke-opacity", 1)
+        .set("stroke-linecap", "square")
+        .set("stroke-linejoin", "square")
+        .set("fill", "purple")
+        .set("transform", format!("translate({}, {}), scale(1, -1)", padding, way_height + elev_height + padding * 2.0))
+        .set("d", elev_points);
 
     let document = Document::new()
-        .set("viewBox", (0, 0, width + 20.0, width * 2.0))
+        .set("viewBox", (0, 0, width + padding * 2.0, width * 2.0))
         // Подложка
-        .add(Rectangle::new() 
+        .add(Rectangle::new()
              .set("width", "100%")
              .set("height", "100%")
              .set("fill", "white")
         )
         .add(Rectangle::new()
-             .set("x", 10.0)
-             .set("y", 10.0)
+             .set("x", padding)
+             .set("y", padding)
              .set("width", width)
-             .set("height", width * 2.0)
+             .set("height", way_height)
              .set("fill", "lavender")
         )
-        .add(way_graph);
+        .add(way_graph)
+        .add(Rectangle::new()
+             .set("x", padding)
+             .set("y", way_height + padding * 2.0)
+             .set("width", width)
+             .set("height", elev_height)
+             .set("fill", "lavender")
+        )
+        .add(elev_graph)
+        .add(Text::new()
+             .set("x", padding)
+             .set("y", padding * 3.0 + way_height + elev_height)
+             .set("font-size", "0.6em")
+             .set("fill", "black")
+             .add(NodeText::new(stamp.header.track.clone().unwrap()))
+        );
 
     document
 }
