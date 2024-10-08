@@ -3,7 +3,7 @@ use svg::node::Text as NodeText;
 use time::Duration;
 use time::format_description::well_known::Iso8601;
 use svg::Document;
-use svg::node::element::{Path, Rectangle, Text};
+use svg::node::element::{Line, Path, Rectangle, Text};
 use svg::node::element::path::{Data, Command, Parameters, Position, Number};
 
 use crate::stamp::Stamp;
@@ -172,7 +172,7 @@ fn svg_elevation(way: &Vec<Waypoint>, width: f64) -> (Data, f64) {
 pub fn to_svg(stamp: &Stamp, way: &Vec<Waypoint>) -> Document {
     let width = 300.0f64;
     let padding = 10.0f64;
-    let (way_points, way_height) = svg_route(way, width);
+    let (way_points, way_height) = svg_route(way, width - padding);
     let (elev_points, elev_height) = svg_elevation(way, width);
 
     let way_graph = Path::new()
@@ -182,7 +182,7 @@ pub fn to_svg(stamp: &Stamp, way: &Vec<Waypoint>) -> Document {
         .set("stroke-linecap", "round")
         .set("stroke-linejoin", "round")
         .set("fill", "none")
-        .set("transform", format!("translate({}, {}), scale(1, -1)", padding, way_height + padding))
+        .set("transform", format!("translate({}, {}), scale(1, -1)", padding * 1.5, way_height + padding * 1.5))
         .set("d", way_points);
 
     let elev_graph = Path::new()
@@ -192,11 +192,11 @@ pub fn to_svg(stamp: &Stamp, way: &Vec<Waypoint>) -> Document {
         .set("stroke-linecap", "square")
         .set("stroke-linejoin", "square")
         .set("fill", "purple")
-        .set("transform", format!("translate({}, {}), scale(1, -1)", padding, way_height + elev_height + padding * 2.0))
+        .set("transform", format!("translate({}, {}), scale(1, -1)", padding, way_height + elev_height + padding * 4.0))
         .set("d", elev_points);
 
     let document = Document::new()
-        .set("viewBox", (0, 0, width + padding * 2.0, width * 2.0))
+        .set("viewBox", (0, 0, width + padding * 2.0, width * 2.5))
         // Подложка
         .add(Rectangle::new()
              .set("width", "100%")
@@ -207,24 +207,33 @@ pub fn to_svg(stamp: &Stamp, way: &Vec<Waypoint>) -> Document {
              .set("x", padding)
              .set("y", padding)
              .set("width", width)
-             .set("height", way_height)
+             .set("height", way_height + padding)
              .set("fill", "lavender")
         )
         .add(way_graph)
         .add(Rectangle::new()
              .set("x", padding)
-             .set("y", way_height + padding * 2.0)
+             .set("y", way_height + padding * 3.5)
              .set("width", width)
-             .set("height", elev_height)
+             .set("height", elev_height + padding * 0.5)
              .set("fill", "lavender")
         )
         .add(elev_graph)
         .add(Text::new()
              .set("x", padding)
-             .set("y", padding * 3.0 + way_height + elev_height)
+             .set("y", padding * 5.5 + way_height + elev_height)
              .set("font-size", "0.6em")
              .set("fill", "black")
              .add(NodeText::new(stamp.header.track.clone().unwrap()))
+        )
+        .add(Line::new()
+             .set("stroke", "grey")
+             .set("stroke-width", 0.8)
+             .set("stroke-opacity", 0.7)
+             .set("x1", padding)
+             .set("y1", padding * 6.5 + way_height + elev_height)
+             .set("x2", width + padding)
+             .set("y2", padding * 6.5 + way_height + elev_height)
         );
 
     document
